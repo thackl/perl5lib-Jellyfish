@@ -1,0 +1,182 @@
+##---------------------------------------------------------------------------##
+## generic
+# obj
+bless( {
+    'bin' => 'jellyfish',
+}, 'Jellyfish' ),
+##---------------------------------------------------------------------------##
+## stats
+#stats string
+"Unique:    11
+Distinct:  13
+Total:     15
+Max_count: 2
+",
+#stats array
+[
+	'Unique:',
+	'11',
+	'Distinct:',
+	'13',
+	'Total:',
+	'15',
+	'Max_count:',
+	'2'
+],
+##---------------------------------------------------------------------------##
+## histo
+# histo_S_t1
+"1 11
+2 2
+",
+# histo_S_t0
+"11
+2
+",
+# histo_A_t1
+[1,11,2,2],
+# histo_A_t0
+[11,2],
+##---------------------------------------------------------------------------##
+## query
+# kmers_seq
+"ATTATATATCGACTAGCC",
+# kmers
+[qw(
+	ATTA
+	TTAT
+	TATA
+	ATAT
+	TATA
+	ATAT
+	TATC
+	ATCG
+	TCGA
+	CGAC
+	GACT
+	ACTA
+	CTAG
+	TAGC
+	AGCC
+)],
+# kmers STRING table => 1
+"ATTA 1
+TTAT 1
+TATA 2
+ATAT 2
+TATA 2
+ATAT 2
+TATC 1
+ATCG 1
+TCGA 1
+CGAC 1
+GACT 1
+ACTA 1
+CTAG 1
+TAGC 1
+AGCC 1
+",
+# kmers STING table => 0
+"1
+1
+2
+2
+2
+2
+1
+1
+1
+1
+1
+1
+1
+1
+1
+",
+# kmers ARRAY table => 1
+[
+          'ATTA',
+          '1',
+          'TTAT',
+          '1',
+          'TATA',
+          '2',
+          'ATAT',
+          '2',
+          'TATA',
+          '2',
+          'ATAT',
+          '2',
+          'TATC',
+          '1',
+          'ATCG',
+          '1',
+          'TCGA',
+          '1',
+          'CGAC',
+          '1',
+          'GACT',
+          '1',
+          'ACTA',
+          '1',
+          'CTAG',
+          '1',
+          'TAGC',
+          '1',
+          'AGCC',
+          '1'
+],
+# kmers ARRAY table => 0
+[
+          '1',
+          '1',
+          '2',
+          '2',
+          '2',
+          '2',
+          '1',
+          '1',
+          '1',
+          '1',
+          '1',
+          '1',
+          '1',
+          '1',
+          '1'
+],
+# kmers_nr
+[(
+	'ATTA',	# TAAT
+	'ATAA',	# TTAT rc
+	'TATA',	# TATA
+	'ATAT',	# ATAT
+	'TATA',	# TATA
+	'ATAT',	# ATAT
+	'GATA',	# TATC rc	
+	'ATCG',	# CGAT
+	'TCGA',	# TCGA
+	'CGAC',	# GTCG
+	'AGTC',	# GACT rc
+	'ACTA',	# TAGT
+	'CTAG',	# CTAG
+	'GCTA',	# TAGC rc
+	'AGCC',	# GGCT
+)],
+# kmers --both-strands
+"ATTA 1
+ATAA 0
+TATA 2
+ATAT 2
+TATA 2
+ATAT 2
+GATA 0
+ATCG 1
+TCGA 1
+CGAC 1
+AGTC 0
+ACTA 1
+CTAG 1
+GCTA 0
+AGCC 1
+",
+
