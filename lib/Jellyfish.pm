@@ -86,6 +86,7 @@ sub new{
 	# init empty obj
 	$self = {
 		bin => 'jellyfish',
+		@_
 	};
 	
 	return bless $self, $proto;
