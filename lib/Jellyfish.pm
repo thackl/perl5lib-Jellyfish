@@ -32,6 +32,9 @@ Class for handling Jellyfish, and in particular to provide an interactive
 
 =over
 
+=item [Feature] Replaced terminator based interface interaction by simpler 
+ and faster counting procedure.
+
 =item [Feature] Submitting each query call for a bunch of kmers as a 
  single call performs very poorly. query() now sets up a interactive 
  interface which keeps a Query instance alive as long as options and 
@@ -102,7 +105,6 @@ sub new{
 	# init empty obj
 	$self = {
 		bin => 'jellyfish',
-		query_term_char => 'x',
 		_query => {md5 => ''},
 		@_
 	};
@@ -329,14 +331,8 @@ sub query{
 	# init interface unless it already exists
 	$self->_query_init_interface($cmd, $opt, $md5) unless $self->{_query}{md5} eq $md5;
 	
-	# add query interface terminator
-	my ($kmer) = $$kmers =~ /(^\S+)/; # get the first kmer
-	$self->{_query}{term} = $self->{_query}{termchar} x length $kmer;
-	$$kmers.= $self->{_query}{term}."\n";
-
 	# query kmers
 	my $re = $self->_query_run($kmers);
-	
 	
 	# process and return result
 	if(wantarray){
@@ -394,10 +390,7 @@ sub bin{
 sub _query_init_interface{
 	my ($self, $cmd, $opt, $md5) = @_;
 	die "md5 required" unless $md5;
-	$self->{_query}={
-		termchar => $self->{query_term_char},
-		md5 => $md5,
-	};
+	$self->{_query}={md5 => $md5};
 	
 	$self->{_query}{md5} = $md5;
 	$self->{_query}{harness} = start 
@@ -418,23 +411,18 @@ sub _query_init_interface{
 
 sub _query_run{
 	my ($self, $kmers) = @_;
+	my $kmer_count = $$kmers =~ tr/\n//;
 	$self->{_query}{i} = $$kmers;
-	$self->{_query}{harness}->pump until $self->{_query}{o} =~ /$self->{_query}{term}/; 
+	$self->{_query}{harness}->pump until $self->{_query}{o} =~ tr/\n// == $kmer_count; 
 	die $self->{_query}{e} if $self->{_query}{e};
 	# fix \r from >pty>
 	my $re = $self->{_query}{o};
 	$self->{_query}{o} = ''; # clean out
 	$self->{_query}{e} = ''; # clean out
 	
-	
+	# remove carriage returns from >pty>
 	$re =~ tr/\r//d;
 	
-	# remove and check terminator
-	$re =~ s/([^\n]+)\n$//;
-	my ($term, $tcount) = split(/\s/, $1);
-	unless ($tcount == 0){
-		die "bad termchar: kmer '$term' has count '$tcount' in hash" 
-	}
 	return \$re;
 }
 
