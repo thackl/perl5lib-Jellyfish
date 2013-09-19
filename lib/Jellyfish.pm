@@ -3,9 +3,10 @@ package Jellyfish;
 use warnings;
 use strict;
 
-use IPC::Run;
+use IPC::Run qw(start pump finish);
+use Digest::MD5 qw(md5);
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 ##------------------------------------------------------------------------##
@@ -24,6 +25,21 @@ Class for handling Jellyfish, and in particular to provide an interactive
 =cut
 
 =head1 CHANGELOG
+
+=cut
+
+=head2 0.02
+
+=over
+
+=item [Feature] Submitting each query call for a bunch of kmers as a 
+ single call performs very poorly. query() now sets up a interactive 
+ interface which keeps a Query instance alive as long as options and 
+ hash don't change and submits all calls to this interface.
+
+=back
+
+=cut
 
 =head2 0.01
 
@@ -86,12 +102,20 @@ sub new{
 	# init empty obj
 	$self = {
 		bin => 'jellyfish',
+		query_term_char => 'x',
+		_query => {md5 => ''},
 	};
 	
 	return bless $self, $proto;
 }
 
 
+sub DESTROY{
+	my $self = shift;
+	if($self->{_query}{harness}){
+		finish $self->{_query}{harness} or die $?;
+	};
+}
 
 
 ##------------------------------------------------------------------------##
@@ -212,7 +236,7 @@ sub histo{
 
 Query a list of kmers against a given hash and retrieve counts. For table=>1
  results are in format "KMER COUNT", table=>0 produces counts only. In 
- SCALAR context a newline separated string is returned, in ARRAY context, a
+ SCALAR context a newline separated string is returned, in ARRAY context,
  (KMERS and) COUNTS are individual items of a LIST.
 
 Kmers can be provided either as STRING, STRING reference or ARRAY reference.
@@ -276,6 +300,7 @@ sub query{
 		return $self->run([$cmd, @$opt]);
 	}
 
+
 	# handle kmer inputs
 	my $kmers;
 	if(! ref $p{kmers}){
@@ -293,24 +318,44 @@ sub query{
 		die 'kmers neither STRING nor SCALAR ref nor ARRAY ref'
 	}
 	
-	# run cmd
-	my $re = '';
-	if($p{table}){
-		$self->run([$cmd, @$opt], $kmers, \$re);
-	}else{
-		my @jelly = ($self->bin, $cmd, @$opt);
-		my @cut = ('cut','-f', '2','-d', ' ');
-		$self->run([$cmd, @$opt], $kmers, '|', \@cut, \$re);
-	}
+
+	# DEPREACTED: $self->run([$cmd, @$opt], $kmers, \$re);
+
+	# compute a "id" from $@opt which will be the same as long as the same
+	#  hash is queried with identical options
+	my $md5 = md5(join("", @$opt));
+
+	# init interface unless it already exists
+	$self->_query_init_interface($cmd, $opt, $md5) unless $self->{_query}{md5} eq $md5;
+	
+	# add query interface terminator
+	my ($kmer) = $$kmers =~ /(^\S+)/; # get the first kmer
+	$self->{_query}{term} = $self->{_query}{termchar} x length $kmer;
+	$$kmers.= $self->{_query}{term}."\n";
+
+	# query kmers
+	my $re = $self->_query_run($kmers);
+	
 	
 	# process and return result
 	if(wantarray){
-		chomp $re;
-		my @re = split(/\s+/, $re);
+		my @re = split(/\s/, $$re);
 		chomp @re;
-		return @re;
+		if ($p{table}){
+			return @re;
+		}else{
+			my $i=0;
+			return grep{$i++ % 2}@re;
+		}
+	}elsif(! $p{table}){
+		chomp $$re;
+		my @re = split(/\s/, $$re);
+		chomp @re;
+		# every other element
+		my $i=0; 
+		return join("\n", grep{$i++ % 2}@re )."\n"
 	}else{
-		return $re;
+		return $$re;
 	}
 }
 
@@ -337,9 +382,61 @@ sub bin{
 
 ##------------------------------------------------------------------------##
 
-=head1 Accessor METHODS
+=head1 Private METHODS
 
 =cut
+
+=head2 _init_query_interface
+
+=cut
+
+sub _query_init_interface{
+	my ($self, $cmd, $opt, $md5) = @_;
+	die "md5 required" unless $md5;
+	$self->{_query}={
+		termchar => $self->{query_term_char},
+		md5 => $md5,
+	};
+	
+	$self->{_query}{md5} = $md5;
+	$self->{_query}{harness} = start 
+		#debug=>1,
+		[$self->bin, $cmd, @$opt], 
+		\$self->{_query}{i},
+		'1>pty>',
+		\$self->{_query}{o},
+		'2>pty>',
+		\$self->{_query}{e},
+	or die "$?";
+}
+
+
+=head2 _query_interface
+
+=cut
+
+sub _query_run{
+	my ($self, $kmers) = @_;
+	$self->{_query}{i} = $$kmers;
+	$self->{_query}{harness}->pump until $self->{_query}{o} =~ /$self->{_query}{term}/; 
+	die $self->{_query}{e} if $self->{_query}{e};
+	# fix \r from >pty>
+	my $re = $self->{_query}{o};
+	$self->{_query}{o} = ''; # clean out
+	$self->{_query}{e} = ''; # clean out
+	
+	
+	$re =~ tr/\r//d;
+	
+	# remove and check terminator
+	$re =~ s/([^\n]+)\n$//;
+	my ($term, $tcount) = split(/\s/, $1);
+	unless ($tcount == 0){
+		die "bad termchar: kmer '$term' has count '$tcount' in hash" 
+	}
+	return \$re;
+}
+
 
 =head1 AUTHOR
 

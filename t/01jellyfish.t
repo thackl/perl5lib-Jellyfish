@@ -70,7 +70,7 @@ my %Dmp;
 my $obj = new_ok($Class, [hash => $Mer_file]);
 subtest 'new object' => sub{
 	foreach my $attr(keys %{$Dmp{obj}}){
-		is($obj->{$attr}, $Dmp{obj}{$attr}, "attribute $attr")
+		is_deeply($obj->{$attr}, $Dmp{obj}{$attr}, "attribute $attr")
 	}
 };
 
@@ -135,6 +135,9 @@ subtest '$obj->query' => sub{
 	
 	# kmers STRING, table => 1, STRING context
 	is(scalar $obj->query([$Mer_file], kmers => $kmers_S), $Dmp{kmers_S_t1}, "query() STRING SCALAR table => 1");
+	my $query = $obj->{_query};
+	is(scalar $obj->query([$Mer_file], kmers => $kmers_S), $Dmp{kmers_S_t1}, "query() STRING SCALAR table => 1");
+	is($obj->{_query}, $query, "query() persistent interface");
 	# kmers STRING ref, table => 0, STRING context
 	is(scalar $obj->query([$Mer_file], kmers => $kmers_SR, table => 0), $Dmp{kmers_S_t0}, "query() STRINGREF SCALAR table => 0");
 	# kmers ARRAY ref, table => 1, ARRAY context
@@ -145,15 +148,15 @@ subtest '$obj->query' => sub{
 	ok(eq_array(\@query, $Dmp{kmers_A_t0}), "query() ARRAYREF LIST table => 0");
 
 	is(scalar $obj->query(['--both-strands', $Mer_file], kmers => $kmers_nr_AR), $Dmp{kmers_nr_S}, "query() --both-strands");
-	
+	isnt($obj->{_query}, $query, "query() reinit interface");
 
 
 
 };
 
-
-
 done_testing();
+
+
 
 
 

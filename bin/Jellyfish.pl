@@ -46,4 +46,6 @@ print Dumper({
 
 my %stats = $jf->stats([@arg]);
 print Dumper(\%stats);
+print $jf->query(['--help']);
+
 
