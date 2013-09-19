@@ -104,6 +104,7 @@ sub new{
 		bin => 'jellyfish',
 		query_term_char => 'x',
 		_query => {md5 => ''},
+		@_
 	};
 	
 	return bless $self, $proto;
@@ -159,8 +160,8 @@ sub run{
 Retrieve stats of a jellyfish hash. Returns raw STRING in SCALAR context, 
  a splitted LIST in LIST context.
 
-  $stats = $jf->stats;
-  %stats = $jf->stats;
+  $stats = $jf->stats(['/path/to/hash']);
+  %stats = $jf->stats(['/path/to/hash']);
 
 =cut
 
@@ -194,8 +195,8 @@ Retrieve histogram informations from jellyfish hash. Returns raw STRING in
  SCALAR context, a splitted LIST in LIST context. Use table=>1/0 to modify 
  output. See query() for details. 
 
-  $stats = $jf->histo;
-  %stats = $jf->histo;
+  $stats = $jf->histo(['/path/to/hash']);
+  %stats = $jf->histo(['/path/to/hash']);
 
 =cut
 
