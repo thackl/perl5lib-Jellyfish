@@ -3,10 +3,9 @@ package Jellyfish;
 use warnings;
 use strict;
 
-use IPC::Run qw(start pump finish);
-use Digest::MD5 qw(md5);
+use IPC::Run qw(start pump finish harness);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 
 ##------------------------------------------------------------------------##
@@ -25,6 +24,22 @@ Class for handling Jellyfish, and in particular to provide an interactive
 =cut
 
 =head1 CHANGELOG
+
+=cut
+
+=head2 0.03
+
+=over
+
+=item [BugFix] The interactive interface, while working per se, crashes after
+ a few second ('Resource temporarily not available') - the reason is unknown.
+ Reverted to non interactive interface, yet maintained a persistent Query
+ instance, that allows for a precomiled IPC::Run harness.
+
+=item [Change] The weather a query call requires a new harness, is no longer
+ tested using md5 but by comparison of stringified commands - faster.
+
+=back
 
 =cut
 
@@ -105,7 +120,7 @@ sub new{
 	# init empty obj
 	$self = {
 		bin => 'jellyfish',
-		_query => {md5 => ''},
+		_query => {id => ''},
 		@_
 	};
 	
@@ -326,10 +341,10 @@ sub query{
 
 	# compute a "id" from $@opt which will be the same as long as the same
 	#  hash is queried with identical options
-	my $md5 = md5(join("", @$opt));
+	my $id = join("", @$opt);
 
 	# init interface unless it already exists
-	$self->_query_init_interface($cmd, $opt, $md5) unless $self->{_query}{md5} eq $md5;
+	$self->_query_init_interface($cmd, $opt, $id) unless $self->{_query}{id} eq $id;
 	
 	# query kmers
 	my $re = $self->_query_run($kmers);
@@ -388,18 +403,16 @@ sub bin{
 =cut
 
 sub _query_init_interface{
-	my ($self, $cmd, $opt, $md5) = @_;
-	die "md5 required" unless $md5;
-	$self->{_query}={md5 => $md5};
+	my ($self, $cmd, $opt, $id) = @_;
+	die "id required" unless $id;
+	$self->{_query}={id => $id};
 	
-	$self->{_query}{md5} = $md5;
-	$self->{_query}{harness} = start 
+	$self->{_query}{id} = $id;
+	$self->{_query}{harness} = harness 
 		#debug=>1,
 		[$self->bin, $cmd, @$opt], 
 		\$self->{_query}{i},
-		'1>pty>',
 		\$self->{_query}{o},
-		'2>pty>',
 		\$self->{_query}{e},
 	or die "$?";
 }
@@ -413,8 +426,9 @@ sub _query_run{
 	my ($self, $kmers) = @_;
 	my $kmer_count = $$kmers =~ tr/\n//;
 	$self->{_query}{i} = $$kmers;
-	$self->{_query}{harness}->pump until $self->{_query}{o} =~ tr/\n// == $kmer_count; 
+	$self->{_query}{harness}->run;
 	die $self->{_query}{e} if $self->{_query}{e};
+
 	# fix \r from >pty>
 	my $re = $self->{_query}{o};
 	$self->{_query}{o} = ''; # clean out
