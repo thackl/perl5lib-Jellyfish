@@ -1,11 +1,5 @@
 package Jellyfish;
 
-use warnings;
-use strict;
-
-use IPC::Run qw(start pump finish harness);
-
-our $VERSION = '0.03';
 
 
 ##------------------------------------------------------------------------##
@@ -77,6 +71,23 @@ Class for handling Jellyfish, and in particular to provide an interactive
 
 =cut
 
+##------------------------------------------------------------------------##
+
+use warnings;
+use strict;
+
+use Carp;
+use Log::Log4perl qw(:no_extra_logdie_message);
+
+
+use IPC::Run;
+
+our $VERSION = '0.03';
+
+#-----------------------------------------------------------------------------#
+# Globals
+
+my $L = Log::Log4perl::get_logger();
 
 ##------------------------------------------------------------------------##
 
@@ -386,8 +397,11 @@ sub dump{
 	);
 	
 	# run cmd
-	$self->run([$cmd, @$opt], \undef, '>pipe', \*OUT);
-	return \*OUT;
+	# $self->run([$cmd, @$opt], \undef, '>pipe', \*OUT); # BLOCKING
+	# simple Hack(l)
+	$L->debug(join(" ", $self->bin, $cmd, @$opt));
+	open(DUMP, "-|", $self->bin, $cmd, @$opt);
+	return \*DUMP;
 }
 
 ##------------------------------------------------------------------------##
