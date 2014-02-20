@@ -80,7 +80,7 @@ use Carp;
 use Log::Log4perl qw(:no_extra_logdie_message);
 
 
-use IPC::Run;
+use IPC::Run qw(harness pump finish start);
 
 our $VERSION = '0.03';
 
@@ -399,7 +399,6 @@ sub dump{
 	# run cmd
 	# $self->run([$cmd, @$opt], \undef, '>pipe', \*OUT); # BLOCKING
 	# simple Hack(l)
-	$L->debug(join(" ", $self->bin, $cmd, @$opt));
 	open(DUMP, "-|", $self->bin, $cmd, @$opt);
 	return \*DUMP;
 }
