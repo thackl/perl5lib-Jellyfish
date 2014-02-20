@@ -250,7 +250,7 @@ sub histo{
 
 
 
-=head2
+=head2 query
 
 Query a list of kmers against a given hash and retrieve counts. For table=>1
  results are in format "KMER COUNT", table=>0 produces counts only. In 
@@ -371,7 +371,24 @@ sub query{
 	}
 }
 
+=head2 dump
 
+
+
+=cut
+
+sub dump{
+	my $cmd = 'dump';
+	my $self = shift;
+	my $opt = @_%2 ?  shift : [];
+	my %p = (
+		@_
+	);
+	
+	# run cmd
+	$self->run([$cmd, @$opt], \undef, '>pipe', \*OUT);
+	return \*OUT;
+}
 
 ##------------------------------------------------------------------------##
 
