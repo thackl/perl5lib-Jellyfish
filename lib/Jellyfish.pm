@@ -384,7 +384,7 @@ sub query{
 
 =head2 dump
 
-
+  $jf->dump([options, 'path/to/jf_kmer_hash'])
 
 =cut
 
@@ -402,6 +402,34 @@ sub dump{
 	open(DUMP, "-|", $self->bin, $cmd, @$opt);
 	return \*DUMP;
 }
+
+
+=head2 get_kmer_size
+
+  $jf->dump(['path/to/jf_kmer_hash'])
+
+=cut
+
+sub get_kmer_size{
+    my $self = shift;
+    my $opt = shift;
+    $L->logdie('hash required') unless $opt;
+    $opt = [$opt] unless ref $opt;
+    unshift @$opt, '-c';
+    my $kmer_line = '';
+    my @head = (qw(head -n 1));
+    my @cut =  (qw(cut -f 1));
+
+    $self->run(['dump', @$opt], \undef, '|', \@head, \$kmer_line);
+    $L->logdie('Cannot determine kmer size') unless $kmer_line;
+
+    my ($kmer) = split(/\s/, $kmer_line);
+
+    $L->logdie('Cannot determine kmer size') unless $kmer;
+    return length($kmer);
+}
+
+
 
 ##------------------------------------------------------------------------##
 

@@ -163,6 +163,14 @@ subtest '$obj->dump' => sub{
 	is(@kmers, 2, "dump()");
 };
 
+subtest '$obj->get_kmer_size' => sub{
+	can_ok($Class, 'get_kmer_size');
+	
+	is($obj->get_kmer_size([$Mer_file]), 4, "get_kmer_size()");
+};
+
+
+
 done_testing();
 
 
