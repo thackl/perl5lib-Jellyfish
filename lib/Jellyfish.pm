@@ -21,6 +21,10 @@ Class for handling Jellyfish, and in particular to provide an interactive
 
 =cut
 
+=head2 0.04
+
+=item [Feature] get_kmer_size(): Determine kmer_size of given hash
+
 =head2 0.03
 
 =over
@@ -82,7 +86,7 @@ use Log::Log4perl qw(:no_extra_logdie_message);
 
 use IPC::Run qw(harness pump finish start);
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 #-----------------------------------------------------------------------------#
 # Globals
