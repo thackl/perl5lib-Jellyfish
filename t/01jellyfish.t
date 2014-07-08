@@ -156,7 +156,6 @@ subtest '$obj->query' => sub{
 
 subtest '$obj->dump' => sub{
 	can_ok($Class, 'dump');
-	
 	my $ofh = $obj->dump([$Mer_file, qw(-c -t -L 2)]);
 	like ($ofh, qr/^GLOB.*/, "dump() FILEHANDLE");
 	my @kmers = <$ofh>;
