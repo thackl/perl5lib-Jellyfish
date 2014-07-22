@@ -81,9 +81,9 @@ use warnings;
 use strict;
 
 use Carp;
-use Log::Log4perl qw(:no_extra_logdie_message);
+use Log::Log4perl qw(:easy :no_extra_logdie_message);
 
-
+use File::Which;
 use IPC::Run qw(harness pump finish start);
 
 our $VERSION = '1.00';
@@ -138,8 +138,13 @@ sub new{
 		_query => {id => ''},
 		@_
 	};
+
+	bless $self, $proto;	
 	
-	return bless $self, $proto;
+	$self->check_binaries;
+
+	return $self;
+
 }
 
 
@@ -475,6 +480,25 @@ sub get_kmer_size{
 }
 
 
+=head2 check_binaries
+
+Test whether binaries are exported and/or existent and executable.
+
+=cut
+
+sub check_binaries{
+    my ($self) = @_;
+    my $bin = $self->bin;
+    unless(-e $bin && -x $bin){
+	if(my $fbin = which($bin)){
+	    $L->logdie("Binary '$fbin' not executable") unless -e $fbin && -x $fbin;
+	}else{
+	    $L->logdie("Binary '$bin' neither in PATH nor executable");
+	}
+    }
+
+    $L->debug("Using binaries: ", which($bin) || $bin);
+}
 
 ##------------------------------------------------------------------------##
 
