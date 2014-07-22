@@ -163,21 +163,29 @@ AGCC 1
 	'GCTA',	# TAGC rc
 	'AGCC',	# GGCT
 )],
-# kmers --both-strands
+# kmers --sequnce S t1
 "ATTA 1
-ATAA 0
-TATA 2
-ATAT 2
-TATA 2
-ATAT 2
-GATA 0
-ATCG 1
-TCGA 1
-CGAC 1
-AGTC 0
-ACTA 1
-CTAG 1
-GCTA 0
+TTAT 1
+TAGC 1
 AGCC 1
 ",
-
+# kmers --sequnce S t0
+"1
+1
+1
+1
+",
+# kmers --sequnce A t1
+[qw(
+ATTA 1
+TTAT 1
+TAGC 1
+AGCC 1
+)],
+# kmers --sequnce A t0
+[qw(
+1
+1
+1
+1
+)],

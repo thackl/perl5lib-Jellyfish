@@ -4,8 +4,8 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Deep;
 use Data::Dumper;
-
 use FindBin qw($RealBin);
 use lib "$RealBin/../lib/";
 
@@ -28,7 +28,10 @@ my $Class = 'Jellyfish';
 # create data file names from name of this <file>.t
 (my $Dat_file = $FindBin::RealScript) =~ s/t$/dat/; # data
 (my $Dmp_file = $FindBin::RealScript) =~ s/t$/dmp/; # data structure dumped
-(my $Mer_file = $FindBin::RealScript) =~ s/t$/mer/; # data structure dumped
+(my $Mer_file = $FindBin::RealScript) =~ s/t$/jf/; # data structure dumped
+(my $Seq_file = $FindBin::RealScript) =~ s/t$/fa/; # data structure dumped
+
+# jellyfish count -m 4 -s 1M  01jellyfish.dat -o 01jellyfish.jf
 
 # slurp <file>.dat
 #my $Dat = do { local $/; local @ARGV = $Dat_file; <> }; # slurp data to string
@@ -52,7 +55,11 @@ my %Dmp;
 	kmers_A_t1
 	kmers_A_t0
 	kmers_nr
-	kmers_nr_S
+	kmers_file_S_t1
+	kmers_file_S_t0
+	kmers_file_A_t1
+	kmers_file_A_t0
+
 )} = do "$Dmp_file"; # read and eval the dumped structure
 
 
@@ -123,6 +130,16 @@ subtest '$obj->histo' => sub{
 subtest '$obj->query' => sub{
 	can_ok($Class, 'query');
 	like($obj->query(['--help']), qr/^Usage:/, "query() --help");
+
+	is($obj->query(['--sequence', $Seq_file, $Mer_file]), $Dmp{kmers_file_S_t1}, "query() --sequence");
+
+	is($obj->query(['--sequence', $Seq_file, $Mer_file], table => 0), $Dmp{kmers_file_S_t0}, "query() --sequence table => 0");
+
+	my @query = $obj->query(['--sequence', $Seq_file, $Mer_file]);
+	cmp_deeply(\@query, $Dmp{kmers_file_A_t1}, "query() --sequence LIST table => 1");
+	@query = $obj->query(['--sequence', $Seq_file, $Mer_file], table => 0);
+	cmp_deeply(\@query, $Dmp{kmers_file_A_t0}, "query() --sequence LIST table => 0");
+
 	
 	# kmers STRING, STRING ref, ARRAY ref
 	# table => 0/1
@@ -134,20 +151,21 @@ subtest '$obj->query' => sub{
 	my $kmers_nr_AR = $Dmp{kmers_nr};
 	
 	# kmers STRING, table => 1, STRING context
-	is(scalar $obj->query([$Mer_file], kmers => $kmers_S), $Dmp{kmers_S_t1}, "query() STRING SCALAR table => 1");
+	is(scalar $obj->query(["-i", $Mer_file], kmers => $kmers_S), $Dmp{kmers_S_t1}, "query() STRING SCALAR table => 1");
 	my $query = $obj->{_query};
 	is(scalar $obj->query([$Mer_file], kmers => $kmers_S), $Dmp{kmers_S_t1}, "query() STRING SCALAR table => 1");
 	is($obj->{_query}, $query, "query() persistent interface");
 	# kmers STRING ref, table => 0, STRING context
 	is(scalar $obj->query([$Mer_file], kmers => $kmers_SR, table => 0), $Dmp{kmers_S_t0}, "query() STRINGREF SCALAR table => 0");
 	# kmers ARRAY ref, table => 1, ARRAY context
-	my @query = $obj->query([$Mer_file], kmers => $kmers_AR);
-	ok(eq_array(\@query, $Dmp{kmers_A_t1}), "query() ARRAYREF LIST table => 1");
+	@query = $obj->query([$Mer_file], kmers => $kmers_AR);
+	cmp_deeply(\@query, $Dmp{kmers_A_t1}, "query() ARRAYREF LIST table => 1");
 	# kmers ARRAY ref, table => 0, ARRAY context
 	@query = $obj->query([$Mer_file], kmers => $kmers_AR, table => 0);
 	ok(eq_array(\@query, $Dmp{kmers_A_t0}), "query() ARRAYREF LIST table => 0");
 
-	is(scalar $obj->query(['--both-strands', $Mer_file], kmers => $kmers_nr_AR), $Dmp{kmers_nr_S}, "query() --both-strands");
+	# other opt for query reinit
+	is(scalar $obj->query(['-o','tmp.out', $Mer_file], kmers => $kmers_nr_AR), '', "query() -o tmp.out");
 	isnt($obj->{_query}, $query, "query() reinit interface");
 
 

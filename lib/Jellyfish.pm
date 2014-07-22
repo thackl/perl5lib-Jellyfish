@@ -86,7 +86,7 @@ use Log::Log4perl qw(:no_extra_logdie_message);
 
 use IPC::Run qw(harness pump finish start);
 
-our $VERSION = '0.04';
+our $VERSION = '1.00';
 
 #-----------------------------------------------------------------------------#
 # Globals
@@ -285,7 +285,8 @@ Kmers can be provided either as STRING, STRING reference or ARRAY reference.
   
   $kmers;
   # '0
-  #  1'
+  #  1
+  # '
 
   my $kmers = $jf->query(
     ['--both-strands', 'path/to/jf_kmer_hash'], 
@@ -295,7 +296,8 @@ Kmers can be provided either as STRING, STRING reference or ARRAY reference.
   
   $kmers;
   # 'ATTA 0
-  #  TATT 1'
+  #  TATT 1
+  # '
   
   my @kmers = $jf->query(
     ['--both-strands', 'path/to/jf_kmer_hash'], 
@@ -319,41 +321,65 @@ Kmers can be provided either as STRING, STRING reference or ARRAY reference.
 =cut
 
 sub query{
-	my $cmd = 'query';
-	my $self = shift;
-	my $opt = @_%2 ?  shift : [];
-	my %p = (
-		table => 1,
-		kmers => '',
-		@_
+    my $cmd = 'query';
+    my $self = shift;
+    my $opt = @_%2 ?  shift : [];
+    my %p = (
+	table => 1,
+	kmers => '',
+	@_
 	);
-	
-	# short-cut options like --help
-	unless ($p{kmers}){
-		return $self->run([$cmd, @$opt]);
-	}
+    
+    # non-interative options like --help or --sequence
+    unless ($p{kmers}){
+	my $re = $self->run([$cmd, @$opt]);
+	return $re unless $re; # short-cut empty output
+	return $re if $re =~ /^Usage/; # short-cut help or error
 
+	# process and return result
+	if(wantarray){
+	    my @re = split(/\s/, $re);
+	    chomp @re;
+	    if ($p{table}){
+		return @re;
+	    }else{
+		my $i=0;
+		return grep{$i++ % 2}@re;
+	    }
+	}elsif(! $p{table}){
+	    chomp $re;
+	    my @re = split(/\s/, $re);
+	    chomp @re;
+	    # every other element
+	    my $i=0; 
+	    return join("\n", grep{$i++ % 2}@re )."\n";
+	}else{
+	    return $re;
+	}
+	
+	# interactive query
+    }else{
 
 	# handle kmer inputs
 	my $kmers;
 	if(! ref $p{kmers}){
-		# make sure there is trailing "\n"
-		chomp $p{kmers};
-		$p{kmers}.="\n";
-		$kmers = \$p{kmers};
+	    # make sure there is trailing "\n"
+	    chomp $p{kmers};
+	    $p{kmers}.="\n";
+	    $kmers = \$p{kmers};
 	}elsif(ref $p{kmers} eq 'ARRAY'){
-		$p{kmers} = join("\n", @{$p{kmers}});
-		$p{kmers}.="\n";
-		$kmers = \$p{kmers};
+	    $p{kmers} = join("\n", @{$p{kmers}});
+	    $p{kmers}.="\n";
+	    $kmers = \$p{kmers};
 	}elsif(ref $p{kmers} eq 'SCALAR'){
-		$kmers = $p{kmers};
+	    $kmers = $p{kmers};
 	}else{
-		die 'kmers neither STRING nor SCALAR ref nor ARRAY ref'
+	    die 'kmers neither STRING nor SCALAR ref nor ARRAY ref'
 	}
+
+	# add -i flag unless already specified in cmd
+	unshift (@$opt, "-i") unless grep{$_ eq "-i"}@$opt;
 	
-
-	# DEPREACTED: $self->run([$cmd, @$opt], $kmers, \$re);
-
 	# compute a "id" from $@opt which will be the same as long as the same
 	#  hash is queried with identical options
 	my $id = join("", @$opt);
@@ -363,27 +389,42 @@ sub query{
 	
 	# query kmers
 	my $re = $self->_query_run($kmers);
-	
+
+	return $$re unless $$re; # short-cut --output to file or no hits
+
+	# -i does not return kmers, only counts
+
 	# process and return result
 	if(wantarray){
-		my @re = split(/\s/, $$re);
-		chomp @re;
-		if ($p{table}){
-			return @re;
-		}else{
-			my $i=0;
-			return grep{$i++ % 2}@re;
+	    chomp($$re);
+	    my @re = split(/\s/, $$re);
+	    if ($p{table}){
+		chomp($$kmers);
+		my @kmers = split("\n", $$kmers);
+		my @res;
+		for(my $i=0; $i<@kmers; $i++){
+		    push @res, $kmers[$i], $re[$i];
 		}
+		return @res;
+	    }else{
+		return @re;
+	    }
 	}elsif(! $p{table}){
-		chomp $$re;
-		my @re = split(/\s/, $$re);
-		chomp @re;
-		# every other element
-		my $i=0; 
-		return join("\n", grep{$i++ % 2}@re )."\n"
+	    return $$re;
 	}else{
-		return $$re;
+	    chomp($$kmers);
+	    chomp($$re);
+	    my @kmers = split("\n", $$kmers);
+	    my @re = split(/\s/, $$re);
+	    my $res = '';
+	    for(my $i=0; $i<@kmers; $i++){
+		$res.=$kmers[$i]." ".$re[$i]."\n";
+	    }
+	    return $res;
 	}
+	
+    }
+	
 }
 
 =head2 dump
@@ -486,7 +527,6 @@ sub _query_init_interface{
 
 sub _query_run{
 	my ($self, $kmers) = @_;
-	my $kmer_count = $$kmers =~ tr/\n//;
 	$self->{_query}{i} = $$kmers;
 	$self->{_query}{harness}->run;
 	die $self->{_query}{e} if $self->{_query}{e};
