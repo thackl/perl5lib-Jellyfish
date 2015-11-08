@@ -17,64 +17,6 @@ Class for handling Jellyfish, and in particular to provide an interactive
 
 =cut
 
-=head1 CHANGELOG
-
-=cut
-
-=head2 0.04
-
-=item [Feature] get_kmer_size(): Determine kmer_size of given hash
-
-=head2 0.03
-
-=over
-
-=item [BugFix] The interactive interface, while working per se, crashes after
- a few second ('Resource temporarily not available') - the reason is unknown.
- Reverted to non interactive interface, yet maintained a persistent Query
- instance, that allows for a precomiled IPC::Run harness.
-
-=item [Change] The weather a query call requires a new harness, is no longer
- tested using md5 but by comparison of stringified commands - faster.
-
-=back
-
-=cut
-
-=head2 0.02
-
-=over
-
-=item [Feature] Replaced terminator based interface interaction by simpler 
- and faster counting procedure.
-
-=item [Feature] Submitting each query call for a bunch of kmers as a 
- single call performs very poorly. query() now sets up a interactive 
- interface which keeps a Query instance alive as long as options and 
- hash don't change and submits all calls to this interface.
-
-=back
-
-=cut
-
-=head2 0.01
-
-=over
-
-=item [Initial]
-
-=back
-
-=cut
-
-=head1 TODO
-
-=over
-
-=back
-
-=cut
-
 ##------------------------------------------------------------------------##
 
 use warnings;
@@ -86,7 +28,7 @@ use Log::Log4perl qw(:easy :no_extra_logdie_message);
 use File::Which;
 use IPC::Run qw(harness pump finish start);
 
-our $VERSION = '1.00';
+our $VERSION = '1.1.0';
 
 #-----------------------------------------------------------------------------#
 # Globals
@@ -179,7 +121,7 @@ Generic. Run a jellyfish command and retrieve results. Results are only
 
   # jellyfish --help
   print $jf->run([--help]);
-  
+
 =cut
 
 sub run{
@@ -322,7 +264,7 @@ Kmers can be provided either as STRING, STRING reference or ARRAY reference.
   # 'ATTA',0,'TATT','1'
   %kmers
   # 'ATTA' => 0, 'TATT' => 1
-  
+
 =cut
 
 sub query{
@@ -456,7 +398,9 @@ sub dump{
 
 =head2 get_kmer_size
 
-  $jf->dump(['path/to/jf_kmer_hash'])
+Actually reads first kmer in hash - this works even on <2.0 hashes.
+
+  $jf->get_kmer_size(['path/to/jf_kmer_hash'])
 
 =cut
 
@@ -466,11 +410,8 @@ sub get_kmer_size{
     $L->logdie('hash required') unless $opt;
     $opt = [$opt] unless ref $opt;
     unshift @$opt, '-c';
-    my $kmer_line = '';
-    my @head = (qw(head -n 1));
-    my @cut =  (qw(cut -f 1));
-
-    $self->run(['dump', @$opt], \undef, '|', \@head, \$kmer_line);
+    my $dfh = $self->dump($opt);
+    my $kmer_line = <$dfh>;
     $L->logdie('Cannot determine kmer size') unless $kmer_line;
 
     my ($kmer) = split(/\s/, $kmer_line);
